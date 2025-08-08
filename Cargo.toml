@@ -1,0 +1,16 @@
+[package]
+name = "honeypot"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serenity = { version = "0.12", features = ["collector"] }
+captcha-rs = { git = "https://github.com/Web-Coke/captcha-rs.git" }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }

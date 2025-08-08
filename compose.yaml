@@ -1,0 +1,6 @@
+services:
+  bot:
+    image: ghcr.io/figuramc/honeypot
+    build: .
+    restart: always
+    env_file: .env
