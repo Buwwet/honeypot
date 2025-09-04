@@ -121,7 +121,7 @@ async fn start_captcha(ctx: Context, honeypot_msg: Message, dm_msg: Message, mem
                     "Correct. You have been unbanned."
                 }
                 false => {
-                    "Incorrect. Submit a ban appeal at <https://figuramc.org/forms/user/unban>"
+                    "Incorrect. Submit a ban appeal or contact the admins of the server."
                 }
             },
         )
