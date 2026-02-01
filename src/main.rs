@@ -9,6 +9,11 @@ use serenity::async_trait;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
+use crate::hash::HashBot;
+
+mod hash;
+mod commands;
+
 struct Bot {
     channel: ChannelId,
     ban_message: String,
@@ -152,6 +157,26 @@ async fn main() {
             ).to_string()),
     };
 
+    // Connect to our database!
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL missing")).await.expect("Expected to connect to honeypot-hash on postgres");
+    let hash_bot = HashBot::new(pool.clone());
+
+    // Setup commands with poise.
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            commands: vec![commands::ping(), commands::hash_message_attachments(), commands::remove_hash()],
+            ..Default::default()
+        })
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                // TODO: we're doing this just to access our pool and DB helper inside commands. We might need a global mutex eventually instead.
+                Ok(HashBot::new(pool))
+            })
+        }).build();
+
     let mut client = Client::builder(
         &token,
         GatewayIntents::GUILDS
@@ -159,7 +184,9 @@ async fn main() {
             | GatewayIntents::DIRECT_MESSAGES
             | GatewayIntents::MESSAGE_CONTENT,
     )
+    .framework(framework)
     .event_handler(bot)
+    .event_handler(hash_bot)
     .await
     .expect("error creating client");
 

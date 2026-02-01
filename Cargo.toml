@@ -13,4 +13,11 @@ codegen-units = 1
 tokio = { version = "1", features = ["full"] }
 serenity = { version = "0.12", features = ["collector"] }
 captcha-rs = { git = "https://github.com/Web-Coke/captcha-rs.git" }
-image = { version = "0.25", default-features = false, features = ["jpeg"] }
+
+sqlx = {version = "0.8.6", features = ["postgres", "chrono", "runtime-tokio"]}
+# TODO: Using GIT because package version uses an old image version
+imagehash = {git = "https://github.com/takebayashi/imagehash-rs"}
+image = { version = "0.25.6", default-features = false, features = ["jpeg"] }
+reqwest = "0.13.1"
+poise = "0.6.1"
+fancy-regex = "0.17.0"
