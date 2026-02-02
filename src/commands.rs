@@ -7,7 +7,7 @@ use crate::hash::{HashBot, UserFile};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, HashBot, Error>;
 
-async fn send_moderator_message(ctx: &Context<'_>, content: &str) {
+pub async fn send_moderator_message(ctx: &Context<'_>, content: &str) {
     ctx.data().get_moderation_channel_id().send_message(ctx, CreateMessage::new().content(content)).await
         .expect("Expected to send message to the moderator channel");
 }

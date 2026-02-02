@@ -1,9 +1,9 @@
 use fancy_regex::Regex;
 // This module contains the logic need to identify images from users and hash them.
-use serenity::{all::{ChannelId, Context, CreateButton, CreateMessage, EventHandler, Message, RoleId}, async_trait};
+use serenity::{all::{ChannelId, Context, CreateButton, CreateMessage, EventHandler, Mentionable, Message, RoleId}, async_trait};
 use sqlx::{FromRow, Pool, Postgres, query, query_as, types::chrono::{self, DateTime, NaiveDate, Utc}};
 
-use crate::start_captcha;
+use crate::{commands::send_moderator_message, start_captcha};
 
 
 const IMAGE_TYPES: [&'static str; 4] = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
@@ -249,6 +249,9 @@ impl EventHandler for HashBot {
         }
 
         let mut user_is_bot = false;
+        // temp container for hash and url.
+        let mut hash = "".to_string();
+        let mut url = "".to_string();
         let attachments = UserFile::from_message(&honeypot_msg);
         
         for attachment in attachments {
@@ -257,7 +260,7 @@ impl EventHandler for HashBot {
 
             if !attachment.is_image() {continue;}
 
-            let hash = self.hash_image(&attachment.url).await.expect("Expected to get the hash of an attachment");
+            hash = self.hash_image(&attachment.url).await.expect("Expected to get the hash of an attachment");
             //println!("HASH: {:?}", hash);
             // Wait for entry...
             if let Some(mut entry) = self.db_get_entry(&hash).await {
@@ -267,6 +270,7 @@ impl EventHandler for HashBot {
                 self.db_update_entry(&entry).await;
                 
                 user_is_bot = true;
+                url = attachment.url;
                 break;
             }
         }
@@ -283,6 +287,11 @@ impl EventHandler for HashBot {
             .ban_with_reason(&ctx.http, 1, "sent message in honeypot channel")
             .await
             .expect("couldn't ban member");
+
+        // Report to HQ
+        self.get_moderation_channel_id().send_message(&ctx, CreateMessage::new()
+            .content(&format!("Banned user {} for sending a hashed image: {} | {}", member.mention(), hash, url)))
+            .await.expect("Expected to report to HQ");
 
         if let Ok(dm_msg) = dm_msg {
             start_captcha(ctx, honeypot_msg, dm_msg, member).await;
