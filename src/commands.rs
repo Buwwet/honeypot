@@ -31,6 +31,7 @@ async fn add_attachment(ctx: &Context<'_>, attachment: UserFile, message: &Messa
 
 /// Test command
 // It seems that context_menu_commands can either recieve a user or msg as their only parameter
+/* 
 #[poise::command(slash_command, context_menu_command = "ping em")]
 pub async fn ping(ctx: Context<'_>, user: User) -> Result<(), Error> {
     println!("{} RAN OUR COMMAND!!!", ctx.author().name);
@@ -41,7 +42,7 @@ pub async fn ping(ctx: Context<'_>, user: User) -> Result<(), Error> {
     send_moderator_message(&ctx, &format!("{} pinged {}!!!", ctx.author().name, user.mention())).await;
 
     Ok(())
-}
+}*/
 
 // Real Commands
 
