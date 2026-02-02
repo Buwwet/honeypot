@@ -9,6 +9,7 @@ services:
       - POSTGRES_PASSWORD=pot
     volumes:
       - ./migrations/init.up.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./data:/var/lib/postgresql/data
   bot:
     build: .
     restart: always

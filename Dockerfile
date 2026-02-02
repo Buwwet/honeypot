@@ -13,7 +13,7 @@ COPY . .
 RUN cargo build --release
 
 FROM debian:bookworm-slim AS runtime
-# For Reqwest to work?
+# For Reqwest to work
 RUN apt-get update && apt-get install -y ca-certificates
 WORKDIR /app
 COPY --from=builder /app/target/release/honeypot /app/honeypot

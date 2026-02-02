@@ -142,7 +142,13 @@ impl HashBot {
         let active_member_role = RoleId::new(active_role_id);
 
         let ban_message = std::env::var("HONEYPOT_HASH_BAN_MESSAGE")
-            .unwrap_or_else(|_| "An automated system flagged your account for suspicious behaviour".to_string());
+            .unwrap_or_else(|_|concat!("You have been automatically banned due to sending flagged images.\n",
+                "This is likely due to a compromised account.\n",
+                "If you recover your account, please make a ban appeal at <https://figuramc.org/forms/user/unban>\n\n",
+                "If you sent a message by mistake, you have 5 minutes to solve a captcha.\n",
+                "To solve the captcha, you need to:\n",
+                "- join this server: https://discord.gg/5UWBcGWGac\n",
+                "- click on the button below.").to_string());
 
         Self {
             client: reqwest::Client::new(),
