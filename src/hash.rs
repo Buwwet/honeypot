@@ -1,7 +1,9 @@
 use fancy_regex::Regex;
 // This module contains the logic need to identify images from users and hash them.
-use serenity::{all::{Context, EventHandler, Message}, async_trait};
+use serenity::{all::{ChannelId, Context, CreateButton, CreateMessage, EventHandler, Message, RoleId}, async_trait};
 use sqlx::{FromRow, Pool, Postgres, query, query_as, types::chrono::{self, DateTime, NaiveDate, Utc}};
+
+use crate::start_captcha;
 
 
 const IMAGE_TYPES: [&'static str; 4] = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
@@ -118,14 +120,38 @@ impl HashBotError {
 pub struct HashBot {
     pool: Pool<Postgres>,
     client: reqwest::Client,
+    /// Role used to designate as immune to image checks
+    /// HONEYPOT_ACTIVE_MEMBER_ROLE
+    active_member_role: RoleId,
+    /// Channel to output to
+    /// HONEYPOT_MODERATOR_CHANNEL
+    moderator_channel_id: ChannelId,
+    /// A custom ban message for automatic hashes
+    /// HONEYPOT_HASH_BAN_MESSAGE
+    ban_message: String,
 }
 
 impl HashBot {
     pub fn new(pool: Pool<Postgres>) -> Self {
+        let moderator_id: u64 = std::env::var("HONEYPOT_MODERATOR_CHANNEL")
+                .expect("Expected env var HONEYPOT_MODERATOR_CHANNEL").parse().expect("Expected to parse HONEYPOT_MODERATOR_CHANNEL into a u64");
+        let moderator_channel_id = ChannelId::new(moderator_id);
+
+        let active_role_id: u64 = std::env::var("HONEYPOT_ACTIVE_MEMBER_ROLE")
+                .expect("Expected env var HONEYPOT_ACTIVE_MEMBER_ROLE").parse().expect("Expected to parse HONEYPOT_ACTIVE_MEMBER_ROLE into a u64");
+        let active_member_role = RoleId::new(active_role_id);
+
+        let ban_message = std::env::var("HONEYPOT_HASH_BAN_MESSAGE")
+            .unwrap_or_else(|_| "An automated system flagged your account for suspicious behaviour".to_string());
+
         Self {
             client: reqwest::Client::new(),
-            pool
+            pool, moderator_channel_id, active_member_role, ban_message
         }
+    }
+
+    pub fn get_moderation_channel_id(&self) -> ChannelId {
+        return self.moderator_channel_id;
     }
 
     // Downloads the given image to RAM and performs aHash
@@ -210,21 +236,56 @@ impl HashBot {
 impl EventHandler for HashBot {
     async fn message(&self, ctx: Context, honeypot_msg: Message) {
 
-        // TODO: filter out messages from channels we don't want.
+        // Don't run on DMs
+        if honeypot_msg.guild_id.is_none() {return;}
+        let member = honeypot_msg.member(&ctx.http)
+            .await
+            .expect("user isn't a member");
+
+        // Dont run when user is an Active Member
+        if member.roles.contains(&self.active_member_role) {
+            //println!("OMG ROLE!!!");
+            return;
+        }
 
         let mut user_is_bot = false;
         let attachments = UserFile::from_message(&honeypot_msg);
+        
         for attachment in attachments {
             // TODO: Check for the active member permision before going through.
-            println!("user sent: {:?}", attachment.content_type);
+            //println!("user sent: {:?}", attachment.content_type);
 
             if !attachment.is_image() {continue;}
 
             let hash = self.hash_image(&attachment.url).await.expect("Expected to get the hash of an attachment");
-            println!("HASH: {:?}", hash);
-            println!("ENTRY: {:?}", self.db_get_entry(&hash).await);
+            //println!("HASH: {:?}", hash);
+            // Wait for entry...
+            if let Some(mut entry) = self.db_get_entry(&hash).await {
+                // A non active member sent a registered bot picture!
+                entry.instances += 1;
+                entry.last_seen = Utc::now();
+                self.db_update_entry(&entry).await;
+                
+                user_is_bot = true;
+                break;
+            }
+        }
 
-            // TODO: actual banning and stuff
+        if !user_is_bot {return;}
+        // Uh oh, bot got through.
+
+        let builder = CreateMessage::new()
+            .content(&self.ban_message)
+            .button(CreateButton::new("start_captcha").label("Start Captcha"));
+        let dm_msg = honeypot_msg.author.direct_message(&ctx.http, builder).await;
+
+        member // TODO - make testing work
+            .ban_with_reason(&ctx.http, 1, "sent message in honeypot channel")
+            .await
+            .expect("couldn't ban member");
+
+        if let Ok(dm_msg) = dm_msg {
+            start_captcha(ctx, honeypot_msg, dm_msg, member).await;
         }
     }
 }

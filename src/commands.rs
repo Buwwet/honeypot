@@ -7,15 +7,8 @@ use crate::hash::{HashBot, UserFile};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, HashBot, Error>;
 
-fn get_moderator_channel_id() -> ChannelId {
-    // TODO: might be better to store this in HashBot
-    let id: u64 = std::env::var("HONEYPOT_MODERATOR_CHANNEL")
-        .expect("Expected env var HONEYPOT_MODERATOR_CHANNEL").parse().expect("Expected to parse HONEYPOT_MODERATOR_CHANNEL into a u64");
-    ChannelId::new(id)
-}
-
 async fn send_moderator_message(ctx: &Context<'_>, content: &str) {
-    get_moderator_channel_id().send_message(ctx, CreateMessage::new().content(content)).await
+    ctx.data().get_moderation_channel_id().send_message(ctx, CreateMessage::new().content(content)).await
         .expect("Expected to send message to the moderator channel");
 }
 
@@ -57,16 +50,11 @@ pub async fn ping(ctx: Context<'_>, user: User) -> Result<(), Error> {
 /// Does NOT ban the user.
 #[poise::command(context_menu_command = "Hash Message Attachments", ephemeral)] //TODO: permisions.
 pub async fn hash_message_attachments(ctx: Context<'_>, msg: Message) -> Result<(), Error> {
-
-    //TODO: userfiles
-    if msg.attachments.is_empty() {
-        ctx.say("No attachments found in target message.").await.unwrap();
-        return Ok(());
-    }
     
-    let mut futures = Vec::with_capacity(msg.attachments.len());
     // Handle each attachment.
     let attachments = UserFile::from_message(&msg);
+
+    let mut futures = Vec::with_capacity(attachments.len());
     for attachment in attachments {
         futures.push(add_attachment(&ctx, attachment, &msg));
     }
@@ -74,6 +62,39 @@ pub async fn hash_message_attachments(ctx: Context<'_>, msg: Message) -> Result<
     join_all(futures.into_iter()).await;
 
     ctx.say(":thumbsup:").await.unwrap();
+
+    Ok(())
+}
+
+/// Ban & Hash bot
+/// \n
+/// Bans the user and hashes their attachments.
+#[poise::command(context_menu_command = "Hash&Ban Bot", ephemeral)]
+pub async fn hash_and_ban(ctx: Context<'_>, msg: Message) -> Result<(), Error> {
+    // Handle each attachment.
+    let attachments = UserFile::from_message(&msg);
+
+    let mut futures = Vec::with_capacity(attachments.len());
+    for attachment in attachments {
+        futures.push(add_attachment(&ctx, attachment, &msg));
+    }
+    // Wait for the futures together
+    join_all(futures.into_iter()).await;
+
+    // Alright, now we can ban the member.
+    // For some reason in context menus we don't get access to the message's author
+    //println!("GUILD {:?}", ctx.guild_id().unwrap().member(ctx, msg.author.id).await.unwrap().display_name());
+    //println!("MEMBER {:?}", ctx.author_member().await.unwrap().display_name());
+
+    let member = ctx.guild_id().expect("Expected to get guild")
+        .member(ctx, msg.author.id).await.expect("Expected to get bot member");
+
+    member 
+        .ban_with_reason(&ctx, 1, "begone!")
+        .await
+        .expect("couldn't ban member");
+
+    ctx.say("User hashed and banned").await.unwrap();
 
     Ok(())
 }
@@ -93,9 +114,3 @@ pub async fn remove_hash(ctx: Context<'_>, hash: String) -> Result<(), Error> {
     Ok(())
 }
 
-/// Ban & Hash bot
-/// \n
-/// Bans the user and hashes their attachments.
-pub async fn ban_and_hash() {
-
-}

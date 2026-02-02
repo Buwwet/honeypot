@@ -74,6 +74,7 @@ fn generate_captcha() -> (String, Vec<u8>) {
         .complexity(5)
         .build();
 
+    println!("> GEN CAPTCHA");
     (captcha.text.clone(), captcha.to_bytes())
 }
 
@@ -166,7 +167,12 @@ async fn main() {
     // Setup commands with poise.
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![commands::ping(), commands::hash_message_attachments(), commands::remove_hash()],
+            commands: vec![
+                commands::ping(), 
+                commands::hash_message_attachments(),
+                commands::remove_hash(),
+                commands::hash_and_ban()
+                ],
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
@@ -183,6 +189,7 @@ async fn main() {
             | GatewayIntents::GUILD_MESSAGES
             | GatewayIntents::DIRECT_MESSAGES
             | GatewayIntents::MESSAGE_CONTENT,
+            
     )
     .framework(framework)
     .event_handler(bot)

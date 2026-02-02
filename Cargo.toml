@@ -11,7 +11,7 @@ codegen-units = 1
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-serenity = { version = "0.12", features = ["collector"] }
+serenity = { version = "0.12", features = ["collector", "cache"] }
 captcha-rs = { git = "https://github.com/Web-Coke/captcha-rs.git" }
 
 sqlx = {version = "0.8.6", features = ["postgres", "chrono", "runtime-tokio"]}
