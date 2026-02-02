@@ -1,6 +1,17 @@
 services:
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=honey
+      - POSTGRES_PASSWORD=pot
+    volumes:
+      - ./migrations/init.up.sql:/docker-entrypoint-initdb.d/init.sql
   bot:
-    image: ghcr.io/figuramc/honeypot
     build: .
     restart: always
     env_file: .env
+    environment:
+      - DATABASE_URL=postgres://honey:pot@db:5432
