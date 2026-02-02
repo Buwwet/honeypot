@@ -168,7 +168,6 @@ async fn main() {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
-                commands::ping(), 
                 commands::hash_message_attachments(),
                 commands::remove_hash(),
                 commands::hash_and_ban()
